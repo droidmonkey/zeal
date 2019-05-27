@@ -27,7 +27,6 @@ target_link_libraries(App Qt5::Widgets)
 
 set_target_properties(App PROPERTIES
     OUTPUT_NAME ${PROJECT_OUTPUT_NAME}
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
 if(APPLE)
@@ -48,4 +47,24 @@ elseif(UNIX)
     include(KDEInstallDirs)
 
     install(TARGETS App DESTINATION ${KDE_INSTALL_BINDIR})
+else(WIN32)
+    install(TARGETS App
+        BUNDLE DESTINATION . COMPONENT Runtime
+        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX} COMPONENT Runtime)
+
+    # Deploy all 3rd party library dependencies first
+    install(CODE "include(BundleUtilities)
+                  fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/${PROJECT_OUTPUT_NAME}.exe\" \"\" \"\")"
+            COMPONENT Runtime)
+        
+    find_program(WINDEPLOYQT_EXE windeployqt HINTS ${Qt5_PREFIX}/bin ENV PATH)
+
+    # Use windeployqt.exe to setup Qt dependencies
+    set(WINDEPLOYQT_MODE "--release")
+    if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
+        set(WINDEPLOYQT_MODE "--debug")
+    endif()
+
+    install(CODE "execute_process(COMMAND ${WINDEPLOYQT_EXE} ${PROJECT_OUTPUT_NAME}.exe ${WINDEPLOYQT_MODE} WORKING_DIRECTORY \${CMAKE_INSTALL_PREFIX} OUTPUT_QUIET)"
+        COMPONENT Runtime)
 endif()
